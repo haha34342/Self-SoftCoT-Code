@@ -1,5 +1,3 @@
-Option A: English Version (Clean & Professional)
-Markdown
 
 # Self-SoftCoT: A Self-Consistent Framework via Position-Aware Latent Space Reinforcement Learning
 
