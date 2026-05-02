@@ -18,8 +18,7 @@ In the paper, **Qwen3-LongCoT** refers to Qwen3-8B evaluated with thinking mode 
 
 It is not a separate method proposed by this work, nor does it denote a new official model name. The citation to Qwen Team (2025) is used to reference the Qwen3 model family and its thinking-mode mechanism.
 
-This baseline is included only as a reference upper bound for explicit long-chain generation. In contrast, Self-SoftCoT explores a parameter-efficient latent reasoning alternative that avoids generating long explicit reasoning trajectories.
-
+This baseline is included only as a reference upper bound for explicit long-chain generation.
 The Qwen3-LongCoT results reported in the paper are our own evaluations under the same benchmark protocol, using Qwen3-8B with thinking mode enabled across five random seeds.
 Please ensure the following core dependencies are installed. We recommend using a virtual environment (Conda).
 
