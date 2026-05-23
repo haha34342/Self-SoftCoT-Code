@@ -1,8 +1,3 @@
-"""
-Unified SoftCoT Model - Independent Projection Version
-配套 "only <box_start>" 创新点使用
-修改: Dropout 设为 0.0 以稳定训练
-"""
 
 import os
 from typing import List, Optional, Union
@@ -40,9 +35,7 @@ class UnifiedSoftCoT(nn.Module):
         self.num_thought_tokens = num_thought_tokens
         self.tune_base_model = tune_base_model
         
-        # === 独立投影层 ===
         if num_thought_tokens > 0:
-            # 创建 N 个独立的 Linear 层
             self.projections = nn.ModuleList([
                 nn.Linear(
                     self.model.config.hidden_size, 
@@ -51,10 +44,8 @@ class UnifiedSoftCoT(nn.Module):
                 ) for _ in range(num_thought_tokens)
             ])
             
-            # [Modified] 彻底关闭 Dropout，防止 Old Policy 计算抖动
             self.dropout = nn.Dropout(0.0)
             
-            # 初始化为恒等映射
             with torch.no_grad():
                 for proj in self.projections:
                     proj.weight.data = torch.eye(
@@ -69,7 +60,6 @@ class UnifiedSoftCoT(nn.Module):
         for n, p in self.model.named_parameters():
             p.requires_grad = tune_base_model
         
-        # 加载权重 (适配 ModuleList)
         if path_to_projection_module is not None and path_to_projection_module not in ['None']:
             try:
                 state_dict = torch.load(path_to_projection_module, map_location='cpu', weights_only=True)
@@ -118,12 +108,11 @@ class UnifiedSoftCoT(nn.Module):
             if soft_thoughts_raw.size(0) != self.num_thought_tokens:
                 continue
 
-            # 逐个 Token 应用对应的投影层
             projected_list = []
             for i in range(self.num_thought_tokens):
                 token_vec = soft_thoughts_raw[i] 
-                token_vec = self.dropout(token_vec) # 现在是恒等映射
-                proj_vec = self.projections[i](token_vec) # 使用第 i 个层的参数
+                token_vec = self.dropout(token_vec)
+                proj_vec = self.projections[i](token_vec)
                 projected_list.append(proj_vec)
             
             projected_thoughts = torch.stack(projected_list)

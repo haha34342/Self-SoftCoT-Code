@@ -7,7 +7,6 @@ import torch
 from transformers import AutoTokenizer, GenerationConfig
 from fastNLP import logger
 
-# 引入当前目录路径
 sys.path.append(os.getcwd())
 
 from unified_llm_model import UnifiedSoftCoT
@@ -34,12 +33,10 @@ def parse_args():
     parser.add_argument('--data_path', type=str, required=True)
     parser.add_argument('--tune_base_model', action='store_true', default=False)
     
-    # [新增] 允许用户选择跑 dev 还是 test
     parser.add_argument('--dataset_split', type=str, default='test', choices=['train', 'dev', 'test'], help='Which split to evaluate on')
     
     return parser.parse_args()
 
-# === 答案提取函数 ===
 def extract_answer_math(response_text):
     cleaned_str = response_text.replace(',', '').replace('%', '').replace('$', '')
     match = re.findall(r'(-?[\d,]+(?:\.\d+)?)', cleaned_str)
@@ -109,7 +106,6 @@ def main():
     else:
         raise NotImplementedError
     
-    # [关键修改] 使用参数控制读取哪个 split
     if args.dataset_split not in db.datasets:
         logger.error(f"Split {args.dataset_split} not found in dataset! Available: {list(db.datasets.keys())}")
         return
@@ -146,7 +142,6 @@ def main():
                     gt_val = float(ans_part) if '.' in ans_part else int(ans_part)
             except: gt_val = None
         elif args.task_name == 'strategyqa':
-            # StrategyQA GT处理增强
             if isinstance(raw_gt, bool): gt_val = 'Yes' if raw_gt else 'No'
             else: gt_val = str(raw_gt)
         elif args.task_name in ['aqua', 'du']:
@@ -198,7 +193,6 @@ def main():
         
         if is_correct: correct_count += 1
         
-        # [新增] 实时打印准确率日志
         current_acc = correct_count / (idx + 1) * 100
         logger.info(f"Step {idx+1}/{len(ds)} | GT: {gt_val} | Pred: {pred_val} | Correct: {is_correct} | Acc: {current_acc:.2f}%")
     

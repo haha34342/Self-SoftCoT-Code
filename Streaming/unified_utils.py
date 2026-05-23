@@ -9,29 +9,21 @@ def get_soft_thoughts(num_thought_tokens):
     return '<|box_start|>' + '<|endoftext|>' * num_thought_tokens + '<|box_end|>'
 
 def _split_question_options(instance):
-    """
-    智能分离问题和选项。
-    返回: (clean_question, options_formatted_string)
-    """
     raw_q = instance['question']
     options_str = ""
 
-    # 1. 尝试从字符串中分割 Options
     if "Options:" in raw_q:
         parts = raw_q.split("Options:")
         clean_q = parts[0].strip()
-        # 保留 Options: 前缀，并确保格式整洁
         options_str = "Options:" + parts[1]
     else:
         clean_q = raw_q.strip()
-        # 2. 如果字符串没 Options，尝试从 instance['options'] 列表获取
         if 'options' in instance:
             options_str = "Options:\n" + "\n".join(instance['options'])
     
     return clean_q, options_str
 
 def _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device, split, max_len):
-    """通用打包函数"""
     input_messages = [{'role': 'user', 'content': input_content}]
     
     input_ids = tokenizer.apply_chat_template(input_messages, tokenize=True)
@@ -54,11 +46,9 @@ def _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device,
             box_end_positions = (input_ids_tensor == box_end_id).nonzero(as_tuple=True)[0]
             
             if len(box_start_positions) > 0 and len(box_end_positions) > 0:
-                # 寻找最后一个 Box
                 thought_start_idx = box_start_positions[-1].item() + 1
                 thought_end_idx = box_end_positions[-1].item()
             else:
-                # logger.warning(f"Special tokens not found. Fallback.")
                 thought_start_idx = 0
                 thought_end_idx = 0
         else:
@@ -77,7 +67,6 @@ def _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device,
         'thought_index': [thought_start_idx, thought_end_idx, 0, 0],
     }
     
-    # 兼容 AQuA/DU 的 GT 字段
     if 'answer' in instance:
         inputs['answer'] = instance['answer']
     elif 'correct' in instance:
@@ -91,7 +80,6 @@ def _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device,
     
     return inputs
 
-# === 1. GSM8K / ASDiv 预处理 ===
 def pre_process_gsm8k_unified(instance, tokenizer, num_thought_tokens=4, device=None, split='train', max_len=-1, **kwargs):
     reasoning_list = instance['answer'].split('\n')
     answer = reasoning_list[-1]
@@ -119,11 +107,9 @@ def pre_process_gsm8k_unified(instance, tokenizer, num_thought_tokens=4, device=
     
     return _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device, split, max_len)
 
-# === 2. StrategyQA 预处理 ===
 def pre_process_strategy_qa_unified(instance, tokenizer, num_thought_tokens=2, device=None, split='train', max_len=-1, **kwargs):
     question = instance['question']
     
-    # 策略QA不需要处理选项
     if num_thought_tokens > 0:
         soft_thoughts = get_soft_thoughts(num_thought_tokens)
         input_content = (
@@ -138,9 +124,7 @@ def pre_process_strategy_qa_unified(instance, tokenizer, num_thought_tokens=2, d
 
     return _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device, split, max_len)
 
-# === 3. AQuA 预处理 ===
 def pre_process_aqua_unified(instance, tokenizer, num_thought_tokens=2, device=None, split='train', max_len=-1, **kwargs):
-    # 分离问题和选项
     clean_q, options_str = _split_question_options(instance)
     
     input_template_head = (
@@ -162,22 +146,18 @@ def pre_process_aqua_unified(instance, tokenizer, num_thought_tokens=2, device=N
         f'Problem: {clean_q}'
     )
 
-    # 1. 拼接 Soft Tokens (紧跟纯问题)
     if num_thought_tokens > 0:
         soft_thoughts = get_soft_thoughts(num_thought_tokens)
         input_content = f'{input_template_head}{soft_thoughts}'
     else:
         input_content = f'{input_template_head}'
 
-    # 2. 拼接 Options (如果存在)
     if options_str:
         input_content += '\n' + options_str
 
     return _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device, split, max_len)
 
-# === 4. DU (Date Understanding) 预处理 ===
 def pre_process_du_unified(instance, tokenizer, num_thought_tokens=2, device=None, split='train', max_len=-1, **kwargs):
-    # 分离问题和选项
     clean_q, options_str = _split_question_options(instance)
     
     input_template_head = (
@@ -199,14 +179,12 @@ def pre_process_du_unified(instance, tokenizer, num_thought_tokens=2, device=Non
         f'Problem: {clean_q}'
     )
 
-    # 1. 拼接 Soft Tokens (紧跟纯问题)
     if num_thought_tokens > 0:
         soft_thoughts = get_soft_thoughts(num_thought_tokens)
         input_content = f'{input_template_head}{soft_thoughts}'
     else:
         input_content = f'{input_template_head}'
 
-    # 2. 拼接 Options (如果存在)
     if options_str:
         input_content += '\n' + options_str
 

@@ -1,14 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-GSPO Training Script - Buffer Multitask Version
-Features:
-1. Fixed Attribute Error (fastNLP Instance)
-2. Added Per-Step Logging (Real-time monitoring)
-3. [New] Epoch-based Data Budget (Check at Step End only)
-4. [Modified] Display only Train Step bar when Budget is Unlimited
-5. [Modified] Added KL Divergence Penalty (Strictly following RL standards)
-"""
 import os
 import re
 import argparse
@@ -21,7 +10,6 @@ from tqdm import tqdm
 import sys
 import logging
 
-# === 路径配置 ===
 sys.path.append(os.getcwd())
 
 try:
@@ -37,12 +25,10 @@ except ImportError as e:
     print(f"❌ Import Error: {e}")
     sys.exit(1)
 
-# === 日志设置 ===
 def setup_logger(output_dir):
     os.makedirs(output_dir, exist_ok=True)
     log_file = os.path.join(output_dir, "train_buffer.log")
     
-    # 清除旧的 Handlers，防止重复打印
     root = logging.getLogger()
     if root.handlers:
         for handler in root.handlers:
@@ -68,7 +54,6 @@ def seed_init(s):
     torch.manual_seed(s)
     torch.cuda.manual_seed_all(s)
 
-# === 增强版答案提取 ===
 def extract_answer_math(response_text):
     match = re.search(r'\\boxed\{([^}]+)\}', response_text)
     t = match.group(1) if match else response_text
@@ -107,7 +92,6 @@ def compute_reward(pred, gt, task_name):
     else:
         return 1.0 if str(pred).upper() == str(gt).upper() else 0.0
 
-# === 独立投影逻辑 ===
 def build_prompt_embeddings_indep(model, input_ids, attention_mask, thought_index, use_grad=False):
     with torch.no_grad():
         base_embeds = model.model.get_input_embeddings()(input_ids)
@@ -172,21 +156,14 @@ def parse_args():
     ap.add_argument("--max_new_tokens", type=int, default=1024)
     ap.add_argument("--seed", type=int, default=42)
     
-    # [MODIFIED] Replaced single epsilon with asymmetric ranges (Paper: 3e-4, 4e-4)
     ap.add_argument("--epsilon_left", type=float, default=3e-4, help="GSPO Left clipping range (Paper: 3e-4)")
     ap.add_argument("--epsilon_right", type=float, default=4e-4, help="GSPO Right clipping range (Paper: 4e-4)")
     
-    # [MODIFIED] Added KL penalty coefficient
-    # GSPO paper (Sec 2, Eq 1) mentions KL is omitted for brevity but standard in PPO/GRPO.
-    # Default 0.01 is standard for RLHF.
     ap.add_argument("--beta_kl", type=float, default=0.01, help="KL penalty coefficient (Standard RLHF default, GSPO paper omits specific value)")
     
     ap.add_argument("--episodes_per_round", type=int, default=16)
     ap.add_argument("--update_epochs", type=int, default=3)
 
-    # [MODIFIED] Using Epoch-based budget instead of raw samples
-    # 0 = Unlimited (only train_steps limit)
-    # N = N * len(train_dataset) limit
     ap.add_argument("--max_data_epochs", type=int, default=0, help="Data budget in epochs (0=Unlimited, N=N*DatasetSize)")
     
     return ap.parse_args()
@@ -238,7 +215,6 @@ def main():
 
     train_ds = db.get_dataset("train")
 
-    # [MODIFIED] Calculate Budget based on Dataset Size and Epochs
     dataset_len = len(train_ds)
     if args.max_data_epochs > 0:
         max_budget = dataset_len * args.max_data_epochs
@@ -259,26 +235,21 @@ def main():
             for i in idxs: yield train_ds[i]
     data_iter = data_generator()
 
-    # [MODIFIED] Progress bars setup
     pbar_steps = tqdm(total=args.train_steps, position=0, desc="Train Steps", ascii=True, ncols=100)
     
-    # 如果无限预算，则不显示第二个进度条
     pbar_budget = None
     if args.max_data_epochs > 0:
         pbar_budget = tqdm(total=max_budget, position=1, desc="Data Budget", ascii=True, ncols=100)
     
     global_step = 0
-    total_attempts = 0 # 总尝试计数器
+    total_attempts = 0
 
     try:
         while global_step < args.train_steps:
-            # === Phase 1: Collection ===
             proj_old.load_state_dict(model.projections.state_dict())
             buffer = []
             reward_stats = []
             
-            # [CRITICAL] Inner loop: Keep collecting until buffer is full. 
-            # We ONLY update the progress bar here, we DO NOT break.
             while len(buffer) < args.episodes_per_round:
                 ins = next(data_iter)
                 
@@ -314,7 +285,6 @@ def main():
                         inputs_embeds=p_embeds, attention_mask=attention_mask, generation_config=gen_config
                     )
                     
-                    # [MODIFIED] Count attempts and update bar. No Break Check Here!
                     total_attempts += 1
                     if pbar_budget:
                         pbar_budget.update(1)
@@ -354,12 +324,11 @@ def main():
             
             avg_r = sum(reward_stats)/len(reward_stats) if reward_stats else 0.0
             
-            # === Phase 2: Training ===
             model.train()
             model.model.gradient_checkpointing_enable()
             
             total_loss = 0.0
-            total_kl = 0.0 # [Added] KL stats
+            total_kl = 0.0
             update_count = 0
             
             for epoch in range(args.update_epochs):
@@ -377,19 +346,14 @@ def main():
                     
                     mask = (b_response_ids != pad_token_id).float()
                     
-                    # [MODIFIED] Added KL Divergence Calculation (approximate k1 estimator)
                     log_diff = logp_new - b_old_logprobs
-                    # KL approx: 0.5 * (log_new - log_old)^2 per token
                     kl_val = 0.5 * ((log_diff * mask) ** 2).sum() / (mask.sum() + 1e-8)
                     
-                    # GSPO Ratio
                     ratio = torch.exp((log_diff * mask).sum(1) / (mask.sum(1)+1e-8))
                     
                     surr1 = ratio * b_adv
-                    # [MODIFIED] Use asymmetric clipping (left: 3e-4, right: 4e-4)
                     surr2 = torch.clamp(ratio, 1 - args.epsilon_left, 1 + args.epsilon_right) * b_adv
                     
-                    # Loss = Policy Loss + KL Penalty
                     loss = -torch.min(surr1, surr2).mean() + args.beta_kl * kl_val
                     
                     loss.backward()
@@ -406,7 +370,6 @@ def main():
             pbar_steps.update(1)
             pbar_steps.set_description(f"Step {global_step} R={avg_r:.2f} L={avg_loss:.4f} KL={avg_kl:.4f}")
             
-            # [Modified] 日志包含 Data Attempts 信息 和 KL
             logger.info(f"Step {global_step} | Reward: {avg_r:.4f} | Loss: {avg_loss:.6f} | KL: {avg_kl:.6f} | Total Data Attempts: {total_attempts}/{'Inf' if max_budget==float('inf') else max_budget}")
             
             if global_step % args.save_every == 0:
@@ -414,7 +377,6 @@ def main():
                 torch.save(model.projections.state_dict(), s_path)
                 logger.info(f"💾 [SAVED] {s_path}")
 
-            # [Added] 预算熔断检查 (只在 Big Step 结束时检查)
             if args.max_data_epochs > 0 and total_attempts >= max_budget:
                 logger.info(f"🛑 Data Budget Reached ({total_attempts} >= {max_budget}). Stopping training.")
                 break

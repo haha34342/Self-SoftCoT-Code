@@ -6,23 +6,16 @@ from fastNLP import logger
 print("DEBUG: Loaded Unified Utils V7 (Final Llama Fix: Using Reserved Token)")
 
 def get_token_config(tokenizer):
-    """
-    根据 Tokenizer 类型动态返回 Soft Token 配置。
-    [CRITICAL]: Llama 使用 reserved_2 作为占位符，防止 EOS 截断生成。
-    """
     model_type = tokenizer.name_or_path.lower()
     
-    # === 分支 A: Llama-3 系列 ===
     if 'llama' in model_type:
         return {
             'type': 'llama',
             'start_token': '<|reserved_special_token_0|>',
             'end_token': '<|reserved_special_token_1|>',
-            # [FIXED] 必须用 reserved_2 (ID 128004)，绝对不能用 end_of_text (EOS)
             'thought_token': '<|reserved_special_token_2|>', 
         }
     
-    # === 分支 B: Qwen 系列 / 默认 ===
     else:
         return {
             'type': 'qwen',
@@ -32,7 +25,6 @@ def get_token_config(tokenizer):
         }
 
 def get_soft_thoughts(num_thought_tokens, tokenizer):
-    """动态生成 Soft Thought 字符串"""
     cfg = get_token_config(tokenizer)
     return f"{cfg['start_token']}{cfg['thought_token'] * num_thought_tokens}{cfg['end_token']}"
 
@@ -50,10 +42,8 @@ def _split_question_options(instance):
     return clean_q, options_str
 
 def _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device, split, max_len):
-    """通用打包函数"""
     input_messages = [{'role': 'user', 'content': input_content}]
     
-    # Llama-3 需要 add_generation_prompt=True (tokenize=True 默认行为)
     input_ids = tokenizer.apply_chat_template(input_messages, tokenize=True)
     
     if max_len > 0 and len(input_ids) > max_len:
@@ -69,7 +59,6 @@ def _pack_inputs(input_content, instance, tokenizer, num_thought_tokens, device,
         start_token = cfg['start_token']
         end_token = cfg['end_token']
         
-        # 获取特殊 Token 的 ID (不添加 special tokens 标记，防止被切碎)
         start_tokens_encoded = tokenizer.encode(start_token, add_special_tokens=False)
         end_tokens_encoded = tokenizer.encode(end_token, add_special_tokens=False)
         

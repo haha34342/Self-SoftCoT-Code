@@ -4,7 +4,6 @@ from typing import Union, Dict
 from fastNLP import DataSet, Instance
 from fastNLP.io import Loader, DataBundle
 
-# GSM8K: 恢复读取 train_split / dev_split
 class GSM8KLoader(Loader):
     def _load(self, path: str) -> DataSet:
         ds = DataSet()
@@ -28,7 +27,6 @@ class GSM8KLoader(Loader):
             }
         return DataBundle(datasets={k: self._load(v) for k, v in paths.items()})
 
-# AQuA: 保持原样 (AQuA 原本就有 train/dev/test)
 class AQuALoader(Loader):
     def _load(self, path: str) -> DataSet:
         ds = DataSet()
@@ -51,7 +49,6 @@ class AQuALoader(Loader):
             }
         return DataBundle(datasets={k: self._load(v) for k, v in paths.items()})
 
-# DU: 保持原样 (同一个文件用于所有 split)
 class DULoader(Loader):
     def _load(self, path: str) -> DataSet:
         ds = DataSet()
@@ -71,7 +68,6 @@ class DULoader(Loader):
             }
         return DataBundle(datasets={k: self._load(v) for k, v in paths.items()})
 
-# StrategyQA: 恢复读取三个具体的 split 文件，而不是代码内切分
 class StrategyQALoader(Loader):
     def _load(self, path: str) -> DataSet:
         ds = DataSet()
@@ -91,7 +87,6 @@ class StrategyQALoader(Loader):
             }
         return DataBundle(datasets={k: self._load(v) for k, v in paths.items()})
 
-# AugASDivLoader: 恢复读取 train_split / dev_split
 class AugASDivLoader(GSM8KLoader):
     def load(self, paths: Union[str, Dict[str, str]] = '/path/to/data/dir') -> DataBundle:
         if isinstance(paths, str):

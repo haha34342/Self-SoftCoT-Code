@@ -7,7 +7,6 @@ import torch
 from transformers import AutoTokenizer, GenerationConfig
 from fastNLP import logger
 
-# 引入当前目录路径
 sys.path.append(os.getcwd())
 
 from unified_llm_model import UnifiedSoftCoT
@@ -34,12 +33,10 @@ def parse_args():
     parser.add_argument('--data_path', type=str, required=True)
     parser.add_argument('--tune_base_model', action='store_true', default=False)
     
-    # [恢复] 允许用户选择跑 train / dev / test
     parser.add_argument('--dataset_split', type=str, default='test', choices=['train', 'dev', 'test'], help='Which split to evaluate on')
     
     return parser.parse_args()
 
-# === 答案提取函数 ===
 def extract_answer_math(response_text):
     cleaned_str = response_text.replace(',', '').replace('%', '').replace('$', '')
     match = re.findall(r'(-?[\d,]+(?:\.\d+)?)', cleaned_str)
@@ -109,7 +106,6 @@ def main():
     else:
         raise NotImplementedError
     
-    # [恢复] 使用参数控制读取哪个 split
     if args.dataset_split not in db.datasets:
         logger.error(f"Split {args.dataset_split} not found in dataset! Available: {list(db.datasets.keys())}")
         return
@@ -121,7 +117,6 @@ def main():
         ds = ds[:args.test_k]
     
     generation_config = GenerationConfig.from_pretrained(args.model_id)
-    # [CRITICAL FIX] Llama Pad Token
     if 'llama' in args.model_id.lower():
         generation_config.pad_token_id = 128009 
     else:
@@ -151,7 +146,6 @@ def main():
                     gt_val = float(ans_part) if '.' in ans_part else int(ans_part)
             except: gt_val = None
         elif args.task_name == 'strategyqa':
-            # StrategyQA GT处理增强
             if isinstance(raw_gt, bool): gt_val = 'Yes' if raw_gt else 'No'
             else: gt_val = str(raw_gt)
         elif args.task_name in ['aqua', 'du']:

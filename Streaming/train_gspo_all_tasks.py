@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-GSPO Training Script - Multi-Task Parallel Version (Fixed Instance.get error)
-适配: GSM8K, AQuA, DU, StrategyQA
-"""
 import os
 import re
 import argparse
@@ -14,12 +8,9 @@ from transformers import AutoTokenizer, GenerationConfig
 from tqdm import tqdm
 import sys
 
-# 导入路径
 sys.path.append(os.getcwd())
-# 导入所有 Loader
 from data_loader import GSM8KLoader, AQuALoader, DULoader, StrategyQALoader, AugASDivLoader
 from unified_llm_model import UnifiedSoftCoT
-# 导入所有 Preprocessors
 from unified_utils import (
     pre_process_gsm8k_unified,
     pre_process_aqua_unified,
@@ -35,32 +26,25 @@ def seed_init(s: int):
     torch.manual_seed(s)
     torch.cuda.manual_seed_all(s)
 
-# === 多任务答案提取 ===
 def extract_answer(text: str, task_name: str):
     text = text.strip()
-    # 1. Math (GSM8K, ASDiv)
     if task_name in ['gsm8k', 'asdiv-aug']:
         match = re.search(r'\\boxed\{([^}]+)\}', text)
         t = match.group(1) if match else text
         t = t.replace(",", "").replace("%", "").replace("$", "")
-        # 匹配数字 (含负数)
         m = re.findall(r"([-+]?\d+(?:\.\d+)?)", t)
         if not m: return None
         try: return int(m[-1]) if "." not in m[-1] else round(float(m[-1]), 2)
         except: return None
         
-    # 2. Option (AQuA, DU)
     elif task_name in ['aqua', 'du']:
-        # 优先看 Box
         match = re.search(r'\\boxed\{([A-Fa-f])\}', text)
         if match: return match.group(1).upper()
-        # 否则反向找单个字母
         rev_text = text.lower()[::-1]
         m = re.search(r'\b[a-f]\b', rev_text)
         if m: return m.group(0).upper()
         return None
         
-    # 3. Boolean (StrategyQA)
     elif task_name == 'strategyqa':
         raw_lower = text.lower()
         rev_text = raw_lower[::-1]
@@ -79,10 +63,8 @@ def compute_reward(pred, gt, task_name):
         return 0.0
     
     if task_name in ['gsm8k', 'asdiv-aug']:
-        # Math: Float Tolerance
         return 1.0 if abs(pred - gt) < 1e-4 else 0.0
     else:
-        # Option/Boolean: String Match
         return 1.0 if str(pred).upper() == str(gt).upper() else 0.0
 
 def build_prompt_embeddings_indep(model, input_ids, attention_mask, thought_index, use_projection_grad=False):
@@ -190,7 +172,6 @@ def main():
     proj_old = deepcopy(model.projections)
     for p in proj_old.parameters(): p.requires_grad = False
     
-    # === 1. 根据任务加载数据和选择预处理 ===
     if args.task_name == 'gsm8k':
         db = GSM8KLoader().load(args.data_path)
         preprocess_fn = pre_process_gsm8k_unified
@@ -234,7 +215,6 @@ def main():
             data_idx = step % len(train_ds)
             ins = train_ds[data_idx]
             
-            # === 2. GT 解析 (兼容 Instance 对象, 修复 .get 错误) ===
             gt_val = None
             if args.task_name in ['gsm8k', 'asdiv-aug']:
                 try:
@@ -242,13 +222,11 @@ def main():
                     gt_val = float(txt) if '.' in txt else int(txt)
                 except: pass
             elif args.task_name == 'strategyqa':
-                # StrategyQA
                 if 'answer' in ins:
                     raw = ins['answer']
                     if isinstance(raw, bool): gt_val = 'Yes' if raw else 'No'
                     else: gt_val = str(raw)
             elif args.task_name in ['aqua', 'du']:
-                # AQuA/DU 优先找 correct，其次 answer
                 raw = None
                 if 'correct' in ins:
                     raw = ins['correct']
@@ -262,7 +240,6 @@ def main():
             processed = preprocess_fn(ins, tokenizer, args.num_thought_tokens, device=dev, split='test')
             input_ids, attention_mask, thought_index = processed['input_ids'], processed['attention_mask'], processed['thought_index']
             
-            # === Parallel Rollout ===
             G = args.group_size
             input_ids_g = input_ids.repeat(G, 1)
             attention_mask_g = attention_mask.repeat(G, 1)
@@ -287,13 +264,8 @@ def main():
             model.projections.load_state_dict(original_state)
             is_swapped = False
             
-            # ============================================================
-            # [CRITICAL FIX]: generate with inputs_embeds returns ONLY new tokens.
-            # Do NOT slice!
-            # ============================================================
             response_ids = gen_output_batch
             
-            # === 3. Reward 计算 ===
             rewards = []
             decoded_texts = tokenizer.batch_decode(response_ids, skip_special_tokens=True)
             for txt in decoded_texts:
@@ -306,9 +278,7 @@ def main():
             
             if r_std < 1e-6:
                 pbar.set_description(f"Step {step+1}: R={r_mean:.2f} (Skip)")
-                # log_msg(f"[Step {step+1}] Skip due to low variance (R={r_mean})") 
             else:
-                # === Training Phase ===
                 model.train()
                 model.model.gradient_checkpointing_enable()
                 model.model.config.use_cache = False
