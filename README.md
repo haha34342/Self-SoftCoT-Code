@@ -19,6 +19,18 @@ It is not a separate method proposed by this work, nor does it denote a new offi
 
 The Qwen3-LongCoT results reported in the paper are our own evaluations under the same benchmark protocol, using Qwen3-8B with thinking mode enabled across five random seeds.
 
+## Clarification on the DPO/KTO Ablation
+
+In the reported DPO/KTO ablation experiments, the observed training instability should be understood as mainly arising from the lack of explicit policy-update control mechanisms centered on sequence-level probability-ratio clipping, rather than simply from the absence of gradient-norm clipping.
+
+Here, “sequence-level probability-ratio clipping” means constraining the probability-ratio change between the current policy and the old policy over the entire generated sequence during training updates. This prevents a single update from causing a large drift in the model’s output distribution.
+
+Here, “explicit policy-update control mechanisms” is a broader concept referring to stability constraints directly introduced into the training objective or training procedure, such as sequence-level probability-ratio clipping, KL regularization, and old-policy constraints under experience replay. These mechanisms help control the policy change induced by each projection-layer update and prevent rapid policy drift.
+
+DPO and KTO do contain reference-model-related constraints. However, in our projection-layer training setting, these constraints were not sufficient to stabilize the highly sensitive projection-layer updates, which may lead to training instability or performance collapse. In contrast, the GSPO-based recipe provides stronger control over policy drift through sequence-level probability-ratio clipping, KL regularization, and experience replay.
+
+Gradient-norm clipping is an optional stability technique for customized training runs. The reported GSPO main results in the paper do not rely on gradient-norm clipping. For reproduction, please follow the actual training configuration in the released implementation.
+
 ## Requirements
 
 Please ensure the following core dependencies are installed. We recommend using a virtual environment (Conda).
