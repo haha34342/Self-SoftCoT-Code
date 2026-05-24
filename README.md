@@ -19,11 +19,13 @@ It is not a separate method proposed by this work, nor does it denote a new offi
 
 The Qwen3-LongCoT results reported in the paper are our own evaluations under the same benchmark protocol, using Qwen3-8B with thinking mode enabled across five random seeds.
 
-## Clarification on the DPO/KTO Ablation
+##Implementation Note
 
-In the reported DPO/KTO ablation experiments, the observed training instability is mainly related to two factors. First, the DPO/KTO-style variants use preference-optimization objectives that differ from the GSPO objective. Second, unlike GSPO, they do not explicitly use advantage-weighted sequence-level probability-ratio clipping together with KL regularization during replay updates to constrain policy drift. Therefore, in the relatively sensitive projection-layer training setting, these variants are more likely to suffer from training instability or performance collapse. This instability should not be simply attributed to the absence of gradient-norm clipping.
+The released implementation should be treated as the main reference for reproduction. In particular, the GSPO results reported in the paper are obtained using sequence-level probability-ratio clipping, KL regularization, and experience replay, as implemented in the training scripts.
 
-Gradient-norm clipping is an optional auxiliary stabilization technique. The reported GSPO main results in the paper do not rely on gradient-norm clipping. For reproduction, please follow the actual training configuration in the released implementation.
+The DPO/KTO ablations are implemented as DPO-style and KTO-style preference-optimization variants adapted to the projection-layer training setting. These variants use preference-optimization objectives that differ from the GSPO objective, and they do not use the same advantage-weighted sequence-level probability-ratio clipping mechanism as GSPO. Therefore, they may be less stable in this setting.
+
+The main GSPO results reported in the paper do not rely on explicit gradient-norm clipping.
 
 ## Requirements
 
