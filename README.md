@@ -21,15 +21,13 @@ The Qwen3-LongCoT results reported in the paper are our own evaluations under th
 
 ## Clarification on the DPO/KTO Ablation
 
-In the reported DPO/KTO ablation experiments, the observed training instability should be understood as mainly arising from weaker explicit policy-update control in these preference-optimization variants, rather than simply from the absence of gradient-norm clipping.
+In the reported DPO/KTO ablation experiments, the observed instability should be understood as mainly arising from weaker policy-update control, rather than simply from the absence of gradient-norm clipping.
 
-Here, “sequence-level probability-ratio clipping” refers to the GSPO mechanism that first aggregates the log-probability difference between the current policy and the old policy over the entire generated sequence, applies length normalization, converts it into a sequence-level probability ratio, and then clips this ratio within a narrow trust region. This directly limits how much a single update can change the model’s output distribution.
+Our GSPO-based recipe controls policy drift through length-normalized sequence-level probability-ratio clipping, KL regularization, and replay-based old-policy constraints. These mechanisms limit how much each projection-layer update can change the model’s output distribution.
 
-Here, “explicit policy-update control mechanisms” is a broader concept referring to stability constraints directly introduced into the training objective or training procedure. In our GSPO-based recipe, these include length-normalized sequence-level probability-ratio clipping, KL regularization, and replay-based old-policy constraints. Together, these mechanisms help control the policy change induced by each projection-layer update and prevent rapid policy drift.
+DPO and KTO contain reference-model-related constraints, and our implementation also uses cached old-policy log-probabilities as a reference-like signal. However, in our projection-layer training setting, these constraints were not sufficient to stabilize the highly sensitive projection updates. Unlike GSPO, the DPO/KTO variants do not explicitly combine sequence-level probability-ratio clipping with KL regularization during replay updates, which may lead to training instability or performance collapse.
 
-Standard DPO and KTO contain reference-model-related constraints. In our implementation, the corresponding DPO/KTO variants also use cached old-policy log-probabilities as a reference-like signal. However, in our projection-layer training setting, these constraints were not sufficient to stabilize the highly sensitive projection-layer updates. In particular, unlike the GSPO-based recipe, these DPO/KTO variants do not explicitly impose length-normalized sequence-level probability-ratio clipping together with KL regularization during replay updates. As a result, they may provide weaker control over policy drift and can lead to training instability or performance collapse.
-
-Gradient-norm clipping is an optional auxiliary stability technique for customized training runs. The reported GSPO main results in the paper do not rely on gradient-norm clipping. For reproduction, please follow the actual training configuration in our released implementation.
+Gradient-norm clipping is an optional auxiliary stability technique for customized training runs. The reported GSPO main results do not rely on gradient-norm clipping. For reproduction, please follow the actual training configuration in the released implementation.
 
 ## Requirements
 
