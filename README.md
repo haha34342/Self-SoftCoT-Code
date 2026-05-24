@@ -19,7 +19,7 @@ It is not a separate method proposed by this work, nor does it denote a new offi
 
 The Qwen3-LongCoT results reported in the paper are our own evaluations under the same benchmark protocol, using Qwen3-8B with thinking mode enabled across five random seeds.
 
-##Implementation Note
+## Implementation Note
 
 The released implementation should be treated as the main reference for reproduction. In particular, the GSPO results reported in the paper are obtained using sequence-level probability-ratio clipping, KL regularization, and experience replay, as implemented in the training scripts.
 
