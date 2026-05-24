@@ -21,13 +21,9 @@ The Qwen3-LongCoT results reported in the paper are our own evaluations under th
 
 ## Clarification on the DPO/KTO Ablation
 
-In the reported DPO/KTO ablation experiments, the observed training instability should be understood as mainly arising from weaker policy-update control, rather than simply from the absence of gradient-norm clipping.
+In the reported DPO/KTO ablation experiments, the observed training instability is mainly related to two factors. First, the DPO/KTO-style variants use preference-optimization objectives that differ from the GSPO objective. Second, unlike GSPO, they do not explicitly use advantage-weighted sequence-level probability-ratio clipping together with KL regularization during replay updates to constrain policy drift. Therefore, in the relatively sensitive projection-layer training setting, these variants are more likely to suffer from training instability or performance collapse. This instability should not be simply attributed to the absence of gradient-norm clipping.
 
-Our GSPO training recipe controls policy drift through length-normalized sequence-level probability-ratio clipping, KL regularization, and old-policy constraints under experience replay. These mechanisms limit how much each projection-layer update can change the model’s output distribution.
-
-DPO and KTO contain reference-model-related constraints. Our DPO and KTO variants also use cached old-policy log-probabilities as a reference-like signal. However, in the projection-layer training setting, these constraints were not sufficient to stabilize the relatively sensitive projection-layer updates. Unlike GSPO, the DPO/KTO variants do not explicitly combine sequence-level probability-ratio clipping with KL regularization during replay updates, which may lead to training instability or performance collapse.
-
-Gradient-norm clipping is an optional auxiliary stability technique for customized training runs. The reported GSPO main results in the paper do not rely on gradient-norm clipping. For reproduction, please follow the actual training configuration in the released implementation.
+Gradient-norm clipping is an optional auxiliary stabilization technique. The reported GSPO main results in the paper do not rely on gradient-norm clipping. For reproduction, please follow the actual training configuration in the released implementation.
 
 ## Requirements
 
