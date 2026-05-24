@@ -21,13 +21,13 @@ The Qwen3-LongCoT results reported in the paper are our own evaluations under th
 
 ## Clarification on the DPO/KTO Ablation
 
-In the reported DPO/KTO ablation experiments, the observed instability should be understood as mainly arising from weaker policy-update control, rather than simply from the absence of gradient-norm clipping.
+In the reported DPO/KTO ablation experiments, the observed training instability should be understood as mainly arising from weaker policy-update control, rather than simply from the absence of gradient-norm clipping.
 
-Our GSPO-based recipe controls policy drift through length-normalized sequence-level probability-ratio clipping, KL regularization, and replay-based old-policy constraints. These mechanisms limit how much each projection-layer update can change the model’s output distribution.
+Our GSPO training recipe controls policy drift through length-normalized sequence-level probability-ratio clipping, KL regularization, and old-policy constraints under experience replay. These mechanisms limit how much each projection-layer update can change the model’s output distribution.
 
-DPO and KTO contain reference-model-related constraints, and our implementation also uses cached old-policy log-probabilities as a reference-like signal. However, in our projection-layer training setting, these constraints were not sufficient to stabilize the highly sensitive projection updates. Unlike GSPO, the DPO/KTO variants do not explicitly combine sequence-level probability-ratio clipping with KL regularization during replay updates, which may lead to training instability or performance collapse.
+DPO and KTO contain reference-model-related constraints. Our DPO and KTO variants also use cached old-policy log-probabilities as a reference-like signal. However, in the projection-layer training setting, these constraints were not sufficient to stabilize the relatively sensitive projection-layer updates. Unlike GSPO, the DPO/KTO variants do not explicitly combine sequence-level probability-ratio clipping with KL regularization during replay updates, which may lead to training instability or performance collapse.
 
-Gradient-norm clipping is an optional auxiliary stability technique for customized training runs. The reported GSPO main results do not rely on gradient-norm clipping. For reproduction, please follow the actual training configuration in the released implementation.
+Gradient-norm clipping is an optional auxiliary stability technique for customized training runs. The reported GSPO main results in the paper do not rely on gradient-norm clipping. For reproduction, please follow the actual training configuration in the released implementation.
 
 ## Requirements
 
