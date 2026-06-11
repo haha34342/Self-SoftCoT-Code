@@ -23,9 +23,9 @@ The Qwen3-LongCoT results reported in the paper are our own evaluations under th
 
 The released implementation should be treated as the main reference for reproduction. The main GSPO results reported in the paper are obtained using sequence-level probability-ratio clipping, KL regularization, and experience replay, as implemented in the training scripts.
 
-The DPO/KTO ablations are implemented as DPO-style and KTO-style variants under the same Self-SoftCoT architecture, adapted to the projection-layer training setting, rather than as standard offline DPO/KTO implementations. In our experiments, the DPO-style variant is prone to training instability and generation degeneration, including output-length inflation, repetitive boilerplate content, and degraded response quality. The KTO-style variant is relatively more stable.
+The DPO/KTO ablations are implemented as DPO-style and KTO-style variants under the same Self-SoftCoT architecture, adapted to the projection-layer training setting, rather than as standard offline DPO/KTO implementations. These preference-style variants use optimization objectives that differ from GSPO and do not adopt GSPO’s advantage-weighted sequence-level probability-ratio clipping mechanism. Therefore, they may be less stable than GSPO in this projection-layer training setting, especially for DPO-style optimization, which is more prone to generation degeneration, output-length inflation, repetitive boilerplate content, and degraded response quality.
 
-These preference-style variants use optimization objectives that differ from GSPO and do not adopt GSPO’s advantage-weighted sequence-level probability-ratio clipping mechanism. Therefore, they may be less stable than GSPO in this projection-layer training setting, especially for DPO-style optimization, which is more prone to generation degeneration. Although KTO-style is relatively more stable, it is still provided only as an auxiliary ablation. The main reproducible results of the paper should be based on the GSPO implementation.
+These preference-style variants are provided only as auxiliary ablations. The main reproducible results of the paper should be based on the GSPO implementation.
 
 The main GSPO results reported in the paper do not rely on explicit gradient-norm clipping.
 
